@@ -1,0 +1,57 @@
+import pygame
+import random
+import os
+import math
+
+BACKGROUND_SIDE = 600
+CIRCLE_DIAM = 600
+DOT_DIAM = 100   # or png side size (if not, it will be resized)
+OUTPUT_DIR = "Subitizing"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+USE_IMAGE = True
+IMAGE_PATH = "SmallFrog.png"   
+
+pygame.init()
+shape_img = None
+if USE_IMAGE:
+    shape_img = pygame.image.load(IMAGE_PATH)
+    shape_img = pygame.transform.smoothscale(shape_img, (DOT_DIAM, DOT_DIAM))
+
+def random_positions(n, circle_radius, dot_size, center):
+    positions = []
+    tries = 0
+    while len(positions) < n and tries < 10000: #but check visually
+        tries += 1
+        theta = random.random() * 2 * math.pi
+        r = circle_radius * math.sqrt(random.random())
+        x = int(center[0] + r * math.cos(theta))
+        y = int(center[1] + r * math.sin(theta))
+        if all(math.hypot(x-px, y-py) > dot_size for px,py in positions): #hypot = euclidian distance
+            positions.append((x,y))
+    return positions
+
+for numerosity in range(1,9):
+    for rep in range(20):  #4*5*8=32*5=160 output png
+        surf = pygame.Surface((BACKGROUND_SIDE, BACKGROUND_SIDE), pygame.SRCALPHA)
+        surf.fill((0,0,0,0))  # transparent
+
+        cx, cy = BACKGROUND_SIDE//2, BACKGROUND_SIDE//2
+        circle_r = CIRCLE_DIAM//2
+
+        pygame.draw.circle(surf, (255,255,255,255), (cx,cy), circle_r)
+
+        positions = random_positions(numerosity, circle_r-DOT_DIAM//2, DOT_DIAM, (cx,cy))
+
+        for (x,y) in positions:
+            if USE_IMAGE and shape_img:
+                rect = shape_img.get_rect(center=(x,y))
+                surf.blit(shape_img, rect)
+            else:
+                pygame.draw.circle(surf, (0,0,0,255), (x,y), DOT_DIAM//2)
+
+        fname = f"{numerosity}_V{rep}.png"
+        pygame.image.save(surf, os.path.join(OUTPUT_DIR, fname))
+
+pygame.quit()
+print("Done :)")

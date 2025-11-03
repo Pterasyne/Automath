@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Subitizing Task</title>
+  <script src="jspsych/dist/jspsych.js"></script>
+  <script src="jspsych/dist/plugin-preload.js"></script>
+  <script src="jspsych/dist/plugin-survey-text.js"></script>
+  <script src="jspsych/dist/plugin-fullscreen.js"></script>
+  <script src="jspsych/dist/plugin-call-function.js"></script>
+  <script src="jspsych/dist/plugin-html-keyboard-response.js"></script>
+  <script src="jspsych/dist/plugin-image-keyboard-response.js"></script>
+  <link rel="stylesheet" href="jspsych/dist/jspsych.css">
+</head>
+<body></body>
+<script>
+  const jsPsych = initJsPsych({
+    on_finish: function() {
+      //override_safe_mode: true,
+      let code = jsPsych.data.get().values()[0].participant_code || "NA";
+      jsPsych.data.get().localSave('csv',`subitizingPART5_${code}.csv`);
+    }
+  });
+
+let trials = [];
+for (let i = 1; i <= 8; i++) { 
+  for (let v = 16; v <= 19; v++) {
+    trials.push({
+      stimulus: `${i}_V${v}.png`, //backstility for legibility
+      correct_response: `${i}`
+    });
+  }
+}
+
+  const preload = {
+    type: jsPsychPreload,
+    auto_preload: true
+  };
+  
+
+  const fullscreen = {
+    type: jsPsychFullscreen,
+    fullscreen_mode: true,
+    message: "L'expérience passera en mode plein écran lorsque vous appuierez sur le bouton ci-dessous<br><br><br>", //Translation of default value
+    button_label: "Continuer" //in English, "Continue" by default
+  };
+
+  var participant_info = {
+    type: jsPsychSurveyText,
+    questions: [
+      /*
+      {
+        prompt: "Quel est le genre de l'enfant?",
+        placeholder: "_ _ _ _ _",
+        name: "Genre",
+        required: true,
+      },
+      {
+        prompt: "Quel est la date de naissance de l'enfant",
+        placeholder: "mois/année",
+        name: "Age",
+        required: true,
+      },
+      */
+      {
+        prompt: "Quel est le code participant",
+        placeholder: "00",
+        name: "Code",
+        required: true,
+      },
+    ],
+    button_label: "Continuer pour commencer l'expérience",
+    on_finish: function(data){
+      jsPsych.data.addProperties({
+        participant_code: data.response.Code
+      });
+    }
+  };
+
+  const hide_cursor = {
+    type: jsPsychCallFunction,
+    func: function() {
+      if(!document.getElementById('hide-cursor')){
+        document.querySelector('head')
+          .insertAdjacentHTML(
+            'beforeend',
+            '<style id="hide-cursor">body { cursor: none !important; }</style>'
+          );
+      }
+    }
+  };
+
+  const show_cursor = {
+    type: jsPsychCallFunction,
+    func: function() {
+      const el = document.getElementById('hide-cursor');
+      if(el) el.remove();
+    }
+  };
+
+  const subitizing_trials = {
+    timeline: [
+      {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: '<div style="font-size:48px;">*</div>',
+        choices: "NO_KEYS",
+        trial_duration: 500
+      },
+      //white screen if wanted
+      {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: '',
+        choices: "NO_KEYS",
+        trial_duration: 0
+      },
+      {
+        type: jsPsychImageKeyboardResponse,
+        stimulus: jsPsych.timelineVariable('stimulus'),
+        choices: [' '],
+        data: {stimulus_file: jsPsych.timelineVariable('stimulus')},
+        on_finish: function(data){
+          last_rt_child = data.rt; //just want one easy to compute line in the experimenter trial
+        }
+      },
+      {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: '',
+        choices: ['1','2','3','4','5','6','7','8'],
+        data: {
+          correct_response: jsPsych.timelineVariable('correct_response')
+        },
+        on_finish: function(data){
+          data.rt_child = last_rt_child;
+          data.rt_experimenter = data.rt;
+          data.experimenter_response = data.response;
+          data.expected = data.correct_response
+          data.correct_response = jsPsych.pluginAPI.compareKeys(data.response, data.correct_response);
+        }
+      }
+    ],
+    timeline_variables: trials,
+    randomize_order: true
+  };
+
+  const exit_fullscreen = {
+    type: jsPsychFullscreen,
+    fullscreen_mode: false
+  };
+
+  
+  jsPsych.run([preload, fullscreen, participant_info, hide_cursor, subitizing_trials, show_cursor, exit_fullscreen]);
+</script>
+</html>

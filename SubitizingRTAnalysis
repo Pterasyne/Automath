@@ -1,0 +1,41 @@
+import numpy as np
+import pandas as pd
+from scipy.optimize import curve_fit
+import matplotlib.pyplot as plt
+
+participant_number = "54" #to change maybe put input s
+filename = f"subitizing_{participant_number}.csv"
+df = pd.read_csv(filename)
+
+grouped = df.groupby('expected').agg({
+    'rt_child': 'mean'
+}).reset_index()
+
+x = grouped['expected'].values
+y = grouped['rt_child'].values
+
+
+
+#In line with previous work (see Leibovich-Raveh et al., 2018)
+def sigmoid(x, c1, c2):
+    return 1 / (1 + np.exp(-c1 * (x - c2)))
+
+yrange = y.max() - y.min()
+ynorm = (y - y.min()) / yrange
+
+p0 = [1, 5] #Initial estimates (still in line with Leibovich-Raveh et al.) (slope, inflection point)
+
+params, cov = curve_fit(sigmoid, x, ynorm, p0=p0)
+c1, c2 = params
+
+x_fit = np.linspace(x.min(), x.max(), 200)
+y_fit = sigmoid(x_fit, c1, c2)
+
+plt.figure(figsize=(8,5))
+plt.scatter(x, ynorm, label="Normalized Data", color="red")
+plt.plot(x_fit, y_fit, label=f"Sigmoid Fit (c1={c1:.2f}, c2={c2:.2f})", color="blue")
+plt.xlabel("Number of Dots")
+plt.ylabel("Normalized Inaccuracy")
+plt.title(f"Sigmoid Fit for Participant {participant_number}")
+plt.legend()
+plt.show()
