@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Arithmetic Task</title>
+  <script src="jspsych/distV7/jspsych.js"></script>
+  <script src="jspsych/distV7/plugin-survey-text.js"></script>
+  <script src="jspsych/distV7/plugin-fullscreen.js"></script>
+  <script src="jspsych/distV7/plugin-call-function.js"></script>
+  <script src="jspsych/distV7/plugin-html-button-response.js"></script>
+  <script src="jspsych/distV7/plugin-html-keyboard-response.js"></script>
+  <link rel="stylesheet" href="jspsych/dist/jspsych.css">
+  <style>
+  </style>
+</head>
+<body></body>
+<script>
+  let responseMapping = {true: 'e', false: 'i'}; //default just in case
+
+  const jsPsych = initJsPsych({ //preclean
+    on_finish: function() {
+      const data = jsPsych.data.get().values();
+      if (data.length === 0) return;
+      const code = data.find(d => d.participant_code)?.participant_code || "NA";
+      const numCode = parseInt(code, 10);
+      const isEven = !isNaN(numCode) && numCode % 2 === 0;
+      const trueKey = isEven ? 'e' : 'i';
+      const falseKey = isEven ? 'i' : 'e';
+      data.forEach(d => {
+        for (let k in d) {
+          if (typeof d[k] === 'string') {
+            d[k] = d[k].replace(/[\n\r;,]+/g, ' ').trim();
+          }
+        }
+        d.participant_code = code;
+        d.expected_if_code_even = d.expected || (d.trial_type?.includes('true') ? trueKey : falseKey);
+        d.post_expected_if_code_even = d.post_expected || (d.post_condition ? (d.post_condition === 'cond3' ? trueKey : falseKey) : '');
+        d.error_value = d.error_value ?? '';
+        d.post_number = d.post_number ?? '';
+        d.post_correct = d.post_correct ?? '';
+        d.post_condition = d.post_condition ?? '';
+        d.main_correct = d.main_correct ?? '';
+        d.num1 = d.num1 ?? '';
+        d.num2 = d.num2 ?? '';
+        d.presented_sum = d.presented_sum ?? '';
+        d.response = d.response ?? '';
+        d.rt = d.rt ?? '';
+      });
+      const headers = Array.from(new Set(data.flatMap(Object.keys)));
+      const rows = data.map(row => headers.map(h => row[h] ?? '').join(';'));
+      const csv = headers.join(';') + '\n' + rows.join('\n');
+      const blob = new Blob([csv], {type: 'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `arithmetic_${code}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  });
+
+
+
+  function generateAdditionPairsUnderTen() {
+    const pairs = [];
+    for (let a = 1; a <= 9; a++) {
+      for (let b = 1; b <= 10 - a; b++) {
+        pairs.push({num1: a, num2: b, correct_sum: a + b});
+      }
+    }
+    return pairs; //45 pairs
+  }
+
+  function betweenPoss(num1, num2, sum) {
+    const arr = [];
+    for (let x = num1 + 1; x < sum; x++) {
+      if (x !== num2) arr.push(x);
+    }
+    return arr;
+  }
+
+  function outsidePoss(num1, num2, sum) {
+    const arr = [];
+    const minVal = Math.min(num1, num2);
+    for (let x = 1; x < minVal; x++) arr.push(x);
+    for (let x = sum + 1; x <= 9; x++) arr.push(x);
+    return arr;
+  }
+
+  function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  }
+
+  function createBalancedTrials() {
+    const combinations = generateAdditionPairsUnderTen(); 
+    const trials = [];
+
+    const shuffled = combinations.sort(() => Math.random() - 0.5);
+
+    const cond1Set = [];
+    for (let combo of shuffled) {
+      if (cond1Set.length < 15 && betweenPoss(combo.num1, combo.num2, combo.correct_sum).length > 0) {
+        cond1Set.push(combo);
+      }
+    }
+    const remainingAfterCond1 = shuffled.filter(c => !cond1Set.includes(c));
+    const cond2Set = [];
+    for (let combo of remainingAfterCond1) {
+      if (cond2Set.length < 15 && outsidePoss(combo.num1, combo.num2, combo.correct_sum).length > 0) {
+        cond2Set.push(combo);
+      }
+    }
+    const remainingAfterCond2 = remainingAfterCond1.filter(c => !cond2Set.includes(c));
+    const cond3Set = remainingAfterCond2.slice(0, 15);
+
+    // 45*2 true/135 
+    shuffled.forEach(combo => {
+      trials.push({
+        trial_type: 'true',
+        stimulus: `<div style="font-size:48px; text-align:center;">${combo.num1} + ${combo.num2} = ${combo.correct_sum}</div>`,
+        correct_response: responseMapping.true,
+        num1: combo.num1,
+        num2: combo.num2,
+        presented_sum: combo.correct_sum,
+        post_number: null,
+        post_expected: null,
+        post_condition: null
+      });
+
+      const trialWith = {
+        trial_type: 'true_with_post',
+        stimulus: `<div style="font-size:48px; text-align:center;">${combo.num1} + ${combo.num2} = ${combo.correct_sum}</div>`,
+        correct_response: responseMapping.true,
+        num1: combo.num1,
+        num2: combo.num2,
+        presented_sum: combo.correct_sum,
+        post_number: null,
+        post_expected: null,
+        post_condition: null
+      };
+
+      let cond, postNum, postExpected;
+      if (cond1Set.includes(combo)) {
+        cond = 'cond1';
+        const bp = betweenPoss(combo.num1, combo.num2, combo.correct_sum);
+        postNum = bp[Math.floor(Math.random() * bp.length)];
+        postExpected = responseMapping.false;
+      } else if (cond2Set.includes(combo)) {
+        cond = 'cond2';
+        const outside = outsidePoss(combo.num1, combo.num2, combo.correct_sum);
+        postNum = outside[Math.floor(Math.random() * outside.length)];
+        postExpected = responseMapping.false;
+      } else if (cond3Set.includes(combo)) {
+        cond = 'cond3';
+        const opt = [combo.num1, combo.num2, combo.correct_sum];
+        postNum = opt[Math.floor(Math.random() * opt.length)];
+        postExpected = responseMapping.true;
+      }
+      trialWith.post_number = postNum;
+      trialWith.post_expected = postExpected;
+      trialWith.post_condition = cond;
+
+      trials.push(trialWith);
+    });
+
+    // 45 false/135 
+    const errorTypes = [-2, -1, 1, 2];
+    const errorPool = [];
+    errorTypes.forEach(e => { for (let i = 0; i < 11; i++) errorPool.push(e); });
+    errorPool.push(errorTypes[Math.floor(Math.random() * errorTypes.length)]);
+    shuffle(errorPool);
+
+    combinations.forEach((combo, i) => {
+      const err = errorPool[i];
+      trials.push({
+        trial_type: 'false',
+        stimulus: `<div style="font-size:48px; text-align:center;">${combo.num1} + ${combo.num2} = ${combo.correct_sum + err}</div>`,
+        correct_response: responseMapping.false,
+        num1: combo.num1,
+        num2: combo.num2,
+        presented_sum: combo.correct_sum + err,
+        post_number: null,
+        post_expected: null,
+        post_condition: null,
+        error_value: err
+      });
+    });
+
+    return shuffle(trials);
+  }
+
+  const hide_cursor = {
+    type: jsPsychCallFunction,
+    func: function() {
+      if(!document.getElementById('hide-cursor')) {
+        document.querySelector('head')
+        .insertAdjacentHTML('beforeend','<style id="hide-cursor">body { cursor: none !important; }</style>');
+      }
+    }
+  };
+
+  const show_cursor = {
+    type: jsPsychCallFunction,
+    func: function() {
+      const el = document.getElementById('hide-cursor');
+      if(el) el.remove();
+    }
+  };
+
+  const fullscreen = {
+    type: jsPsychFullscreen,
+    fullscreen_mode: true,
+    message: "L'expérience passera en mode plein écran lorsque vous appuierez sur le bouton ci-dessous<br><br><br>",
+    button_label: "Continuer"
+  };
+
+  const participant_info = {
+    type: jsPsychSurveyText,
+    questions: [
+      { 
+        prompt: "Quel est le code participant", 
+        placeholder: "00", 
+        name: "Code", 
+        required: true }
+    ],
+    button_label: "Continuer",
+    on_finish: function(data) {
+      jsPsych.data.addProperties({ participant_code: data.response.Code });
+    }
+  };
+
+  const setResponseMapping = {
+    type: jsPsychCallFunction,
+    func: function() {
+      const code = jsPsych.data.get().last(1).values()[0].participant_code;
+      if(/^\d+$/.test(code)) { //check if number
+        const numCode = parseInt(code, 10);
+        if(numCode % 2 === 0) {
+          responseMapping = {true: 'e', false: 'i'};
+        } else {
+          responseMapping = {true: 'i', false: 'e'};
+        }
+      }
+    }
+  };
+
+    const instructions = {
+    type: jsPsychHtmlButtonResponse,
+    stimulus: function() {
+        let correctKey = responseMapping.true.toUpperCase();
+        let incorrectKey = responseMapping.false.toUpperCase();
+        return (
+        "<p>Vous allez voir différentes additions.</p>" +
+        `<p><br><br>Appuyez sur <strong>${correctKey}</strong> si le calcul est VRAI.<br><br>` +
+        `Appuyez sur <strong>${incorrectKey}</strong> si le calcul est FAUX</p><br><br>` +
+        "<p>Juste après certaines additions vous verrez un nombre.</p>" +
+        `<p><br><br>Appuyez sur <strong>${correctKey}</strong> si le nombre était dans le calcul.<br><br>` +
+        `Appuyez sur <strong>${incorrectKey}</strong> si le nombre n'était pas dans le calcul</p><br><br>`
+        );
+    },
+    choices: ["Continuer pour commencer l'expérience"],
+    data: {screen: "Instructions"},
+    };
+
+
+  const fixation = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: '<div style="font-size:48px;">*</div>',
+    choices: "NO_KEYS",
+    trial_duration: 500,
+    data: {screen: "fixation"}
+  };
+
+  const post_trial_gap = { //if wanted
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: '',
+    choices: "NO_KEYS",
+    trial_duration: 0,
+    data: {screen: "gap"}
+  };
+
+  const iti = { //if wanted
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: '',
+    choices: "NO_KEYS",
+    trial_duration: 0,
+    data: {screen: "gap"}
+  };
+
+  const main_response = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: jsPsych.timelineVariable('stimulus'),
+    choices: ['e', 'i'],
+    data: {
+      trial_type: jsPsych.timelineVariable('trial_type'),
+      expected: jsPsych.timelineVariable('correct_response'),
+      num1: jsPsych.timelineVariable('num1'),
+      num2: jsPsych.timelineVariable('num2'),
+      presented_sum: jsPsych.timelineVariable('presented_sum')
+    },
+    on_finish: function(data) {
+      data.main_correct = jsPsych.pluginAPI.compareKeys(data.response, data.expected);
+    }
+  };
+
+  const post_number_screen = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: function() {
+      const postNumber = jsPsych.timelineVariable('post_number');
+      return `<div style="font-size:48px;">${postNumber}</div>`;
+    },
+    choices: ['e', 'i'],
+    data: {
+      trial_type: jsPsych.timelineVariable('trial_type'),
+      post_number: jsPsych.timelineVariable('post_number'),
+      post_expected: jsPsych.timelineVariable('post_expected'),
+      post_condition: jsPsych.timelineVariable('post_condition')
+    },
+    on_finish: function(data) {
+      data.post_correct = jsPsych.pluginAPI.compareKeys(data.response, data.post_expected);
+    }
+  };
+
+  function createArithmeticTrialsWrapper() {
+    const trials = createBalancedTrials();
+    return {
+      timeline: [
+        fixation,
+        main_response,
+        {
+          timeline: [post_number_screen],
+          conditional_function: function() {
+            const currentTrial = jsPsych.timelineVariable('trial_type');
+            return currentTrial === 'true_with_post';
+          }
+        }
+      ],
+      timeline_variables: trials,
+      randomize_order: true
+    };
+  }
+
+
+  const exit_fullscreen = {
+    type: jsPsychFullscreen,
+    fullscreen_mode: false
+  };
+
+jsPsych.run([fullscreen, participant_info, setResponseMapping, instructions,
+  hide_cursor, createArithmeticTrialsWrapper(), show_cursor, exit_fullscreen
+]);
+
+</script>
+</html>
