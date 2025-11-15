@@ -3,7 +3,7 @@ import pandas as pd
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 
-participant_number = "54" #to change maybe put input s
+participant_number = input("Participant code: ")
 filename = f"subitizing_{participant_number}.csv"
 df = pd.read_csv(filename)
 
@@ -35,7 +35,7 @@ plt.figure(figsize=(8,5))
 plt.scatter(x, ynorm, label="Normalized Data", color="red")
 plt.plot(x_fit, y_fit, label=f"Sigmoid Fit (c1={c1:.2f}, c2={c2:.2f})", color="blue")
 plt.xlabel("Number of Dots")
-plt.ylabel("Normalized Inaccuracy")
+plt.ylabel("Normalized RT")
 plt.title(f"Sigmoid Fit for Participant {participant_number}")
 plt.legend()
 plt.show()
