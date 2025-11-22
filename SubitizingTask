@@ -119,7 +119,7 @@
       "<br>Vous allez voir apparaître plusieurs fois des grenouilles à l’écran."+
       "<br>Dès que vous savez combien de grenouilles il y a, vous devez dire le nombre à voix haute et appuyer en même temps sur la barre espace."+
       "<br>Vous devez être rapide et correct."+
-      "<br><br>Appuyez sur une touche pour commencer l'entraînement'.</p>",
+      "<br><br>Appuyez sur une touche pour commencer l'entraînement.</p>",
     choices: "ALL_KEYS"
   };
 
