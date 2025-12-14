@@ -23,7 +23,7 @@
 
   const FIXATION_DURATION = 500;
   const WHITE_SCREEN_DURATION = 0;
-  const EXPERIMENTER_KEYS = ['1','2','3','4','5','6','7','8','9']; 
+  const EXPERIMENTER_KEYS = ['0','1','2','3','4','5','6','7','8','9']; 
   const BREAK_KEYS = ['0','1','2','3','4','5','6','7','8','9'];   
   const CHILD_KEY = [' ']; 
 
@@ -234,4 +234,5 @@
   make_subitizing_trials(trials_block1), break_screen,
   make_subitizing_trials(trials_block2), show_cursor, exit_fullscreen]);
 </script>
+
 </html>
