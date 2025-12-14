@@ -135,7 +135,7 @@ const training_trials = {
     {
       type: jsPsychHtmlKeyboardResponse,
       stimulus: jsPsych.timelineVariable("stimulus"),
-      choices: ["e","i"],
+      choices: ["e","i","0"],
       data: {
         expected: jsPsych.timelineVariable("expected"),
         trial_kind: jsPsych.timelineVariable("trial_kind"),
@@ -175,7 +175,7 @@ function make_arithmetic_trials(trials) {
       {
         type: jsPsychHtmlKeyboardResponse,
         stimulus: jsPsych.timelineVariable('stimulus'),
-        choices: ["e","i"],
+        choices: ["e","i","0"],
         data: {
           expected: jsPsych.timelineVariable('expected'),
           trial_kind: jsPsych.timelineVariable('trial_kind'),
@@ -222,3 +222,4 @@ jsPsych.run([fullscreen, participant_info, instructions, hide_cursor, training_t
 
 </script>
 </html>
+
