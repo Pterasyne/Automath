@@ -56,7 +56,7 @@
   const fullscreen = {
     type: jsPsychFullscreen,
     fullscreen_mode: true,
-    message: "L'expérience passera en mode plein écran lorsque vous appuierez sur le bouton ci-dessous<br><br><br>", //Translation of default value
+    message: "L'expérience passera en mode plein écran lorsque tu appuyeras sur le bouton ci-dessous<br><br><br>", //Translation of default value
     button_label: "Continuer" //in English, "Continue" by default
   };
 
@@ -116,10 +116,10 @@
   const intro_training = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: "<p>Début de l'entraînement."+
-      "<br>Vous allez voir apparaître plusieurs fois des grenouilles à l’écran."+
-      "<br>Dès que vous savez combien de grenouilles il y a, vous devez dire le nombre à voix haute et appuyer en même temps sur la barre espace."+
-      "<br>Vous devez être rapide et correct."+
-      "<br><br>Appuyez sur une touche pour commencer l'entraînement.</p>",
+      "<br>Tu vas voir apparaître plusieurs fois des grenouilles à l’écran."+
+      "<br>Dès que tu sais combien de grenouilles il y a, tu dois dire le nombre à voix haute et appuyer en même temps sur la barre espace."+
+      "<br>Tu dois être rapide et correct."+
+      "<br><br>Appuie sur une touche pour commencer l'entraînement.</p>",
     choices: "ALL_KEYS"
   };
 
@@ -161,7 +161,7 @@
 
   const outro_training = {
     type: jsPsychHtmlKeyboardResponse,
-    stimulus: "<p>Fin de l'entraînement.<br><br>Appuyez sur une touche pour commencer la vraie expérience.</p>",
+    stimulus: "<p>Fin de l'entraînement.<br><br>Appuie sur une touche pour commencer la vraie expérience.</p>",
     choices: "ALL_KEYS"
   };
 
@@ -215,7 +215,7 @@
 
   const break_screen = {
     type: jsPsychHtmlKeyboardResponse,
-    stimulus: "<p>Pause !<br>Appuyez sur une touche numérique pour continuer.</p>",
+    stimulus: "<p>Pause !<br>Appuie sur une touche numérique pour continuer.</p>",
     choices: BREAK_KEYS
   };
 
@@ -234,5 +234,4 @@
   make_subitizing_trials(trials_block1), break_screen,
   make_subitizing_trials(trials_block2), show_cursor, exit_fullscreen]);
 </script>
-
 </html>

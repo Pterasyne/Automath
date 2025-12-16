@@ -26,7 +26,7 @@ const BREAK_KEYS = ['0','1','2','3','4','5','6','7','8','9'];
 const fullscreen = {
   type: jsPsychFullscreen,
   fullscreen_mode: true,
-  message: "L'expérience passera en mode plein écran lorsque vous appuierez sur le bouton ci-dessous<br><br><br>",
+  message: "L'expérience passera en mode plein écran lorsque tu appuieras sur le bouton ci-dessous<br><br><br>",
   button_label: "Continuer"
 };
 
@@ -49,16 +49,16 @@ const instructions = {
   type: jsPsychHtmlButtonResponse,
   stimulus: function() {
     return `<p>Début de l'entraînement.</p>
-            <p><br><br>Vous allez voir plusieurs additions.</p>
-            <p>Appuyez sur <strong>${responseMapping.true.toUpperCase()}</strong> si l'addition est VRAIE.<br>
-            Appuyez sur <strong>${responseMapping.false.toUpperCase()}</strong> si elle est FAUSSE.</p>`;
+            <p><br><br>Tu vas voir plusieurs additions.</p>
+            <p>Appuie sur <strong>V</strong> si l'addition est VRAIE.<br>
+            Appuie sur <strong>F</strong> si elle est FAUSSE.</p>`;
   },
   choices: ["Commencer l'entraînement"]
 };
 
 const outro_training = {
   type: jsPsychHtmlKeyboardResponse,
-  stimulus: "<p>Fin de l'entraînement.<br><br>Appuyez sur une touche pour commencer la vraie expérience.</p>",
+  stimulus: "<p>Fin de l'entraînement.<br><br>Appuie sur une touche pour commencer la vraie expérience.</p>",
   choices: "ALL_KEYS"
 };
 
@@ -146,12 +146,19 @@ const training_trials = {
         displayed_sum: jsPsych.timelineVariable("displayed_sum")
       },
       on_finish: function(data){
+        if (data.response === "0") {
+          data.response_matching = null;
+          data.correct = null;
+          data.response_type = "undef";
+          return;
+        }
         let response_matches_mapping = jsPsych.pluginAPI.compareKeys(
           data.response,
           responseMapping[true]
         );
         data.response_matching = response_matches_mapping
         data.correct = response_matches_mapping === data.expected;
+        data.response_type = "defined";
         data.response_key = data.response; 
         data.reaction_time = data.rt; 
       }
@@ -186,12 +193,19 @@ function make_arithmetic_trials(trials) {
           displayed_sum: jsPsych.timelineVariable("displayed_sum")
         },
         on_finish: function(data){
+        if (data.response === "0") {
+          data.response_matching = null;
+          data.correct = null;
+          data.response_type = "undef";
+          return;
+        }
         let response_matches_mapping = jsPsych.pluginAPI.compareKeys(
           data.response,
           responseMapping[true]
         );
         data.response_matching = response_matches_mapping
         data.correct = response_matches_mapping === data.expected;
+        data.response_type = "defined";
         data.response_key = data.response; 
         data.reaction_time = data.rt; 
         }
@@ -203,7 +217,7 @@ function make_arithmetic_trials(trials) {
 
 const break_screen = {
   type: jsPsychHtmlKeyboardResponse,
-  stimulus: "<p>Pause !<br>Appuyez sur une touche numérique pour continuer.</p>",
+  stimulus: "<p>Pause !<br>Appuie sur une touche numérique pour continuer.</p>",
   choices: BREAK_KEYS
 };
 
@@ -222,4 +236,3 @@ jsPsych.run([fullscreen, participant_info, instructions, hide_cursor, training_t
 
 </script>
 </html>
-
