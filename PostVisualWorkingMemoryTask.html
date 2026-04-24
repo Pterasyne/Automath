@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html>
+    <!--Widely inspired by Xu et a (2018) available code, which programmed by Kirsten Adam, followin Luck & Vogel (1997)-->
+    <head>
+        <title>Change detection task</title>
+        <script src="jspsych/dist/jspsych.js"></script>
+        <script src="jspsych/dist/plugin-html-keyboard-response.js"></script>
+        <script src="jspsych/dist/plugin-call-function.js"></script>
+        <script src="jspsych/dist/plugin-fullscreen.js"></script>
+        <script src="jspsych/dist/plugin-survey-text.js"></script>
+        <script src="jspsych/dist/plugin-html-button-response.js"></script>
+        <link rel="stylesheet" href="jspsych/dist/jspsych.css">
+        <style> /* To center everything and optimize to full screen */
+            body, html {
+                margin:0;
+                padding: 0;
+                height: 100%;
+                overflow:hidden;
+                background-color: gray; /* I rounded 127.5 in Xu et al. by 128*/
+            }
+            #jspsych-target { 
+                display: flex; 
+                justify-content: center; 
+                align-items: center; 
+                width: 100vw; 
+                height: 100vh; 
+                position: relative; 
+            }
+            .fixation { 
+                font-size: 48px; 
+                position: absolute; 
+                top: 50%; 
+                left: 50%; 
+                transform: translate(-50%, -50%); 
+            }
+            .square { 
+                position: absolute; 
+                box-sizing: border-box; 
+            }
+
+            .quadrant-bg { 
+                position: absolute; 
+                z-index: 0; 
+                opacity: 0.8; 
+            }
+        </style>
+    </head>
+    <body></body>
+    <script>
+        const NUMBLOCKS = 5;
+        const NTRIALSPERCONDITION = 25; //*2 for true false and *3 for all sizes of set = 150 trials
+        const SETSIZES = [4, 6, 8];
+        const CHANGECONDITIONS = [0, 1];
+        const RETENTIONINTERVAL = 1000;
+        const STIMULUSDURATION = 150;
+        const FIXATIONDURATION = 1000;
+        const STIMSIZE = 51;
+        const MINDIST = 76;
+
+        const COLORS = [
+            [255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 0], 
+            [255, 0, 255], [0, 255, 255], [255, 255, 255], [1, 1, 1], [255, 128, 0]
+        ];
+
+        let previousLocs = null;
+        let previousItemColors = null;
+        let responseMapping = { same: "e", different: "i" };
+
+        function linspace(start, stop, num) { //Numpyification of javascript :)
+            const step = (stop - start) / (num - 1);
+            return Array.from({ length: num }, (_, i) => start + i * step);
+        }
+
+        function getStimLocs(win, nItems) { //Gestion for even other possible set size, following once again Xu et al., 2018
+            const centerX = win.innerWidth / 2;
+            const centerY = win.innerHeight / 2;
+            const halfSize = STIMSIZE / 2;
+            const totalHeight = win.innerHeight;
+            const totalWidth = totalHeight; //Not a rectagnle but a square "screen"
+            const bigLeft = centerX - (totalWidth / 2);
+            const bigRight = centerX + (totalWidth / 2);
+            const quadSize = totalHeight / 2;//sudivision of the square screen by four quadrants :
+            const qLeftStart = bigLeft + halfSize; 
+            const qLeftEnd = centerX - halfSize;
+            const qRightStart = centerX + halfSize;
+            const qRightEnd = bigRight - halfSize;
+            const qTopStart = 0 + halfSize;
+            const qTopEnd = centerY - halfSize;
+            const qBottomStart = centerY + halfSize;
+            const qBottomEnd = win.innerHeight - halfSize;
+            const xCoordsLeft = linspace(qLeftStart, qLeftEnd, 300);
+            const xCoordsRight = linspace(qRightStart, qRightEnd, 300);
+            const yCoordsTop = linspace(qTopStart, qTopEnd, 300);
+            const yCoordsBottom = linspace(qBottomStart, qBottomEnd, 300);
+            const xIndLeft = jsPsych.randomization.shuffle([...Array(300).keys()]); //thanks jspsych for the internal shuffle func
+            const xIndRight = jsPsych.randomization.shuffle([...Array(300).keys()]);
+            const yIndTop = jsPsych.randomization.shuffle([...Array(300).keys()]);
+            const yIndBottom = jsPsych.randomization.shuffle([...Array(300).keys()]);
+            let xPos = [];
+            let yPos = [];
+            const dist = (x1, y1, x2, y2) => Math.sqrt(Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2));
+            if (nItems === 1) {
+                xPos = [Math.random() < 0.5 ? xCoordsLeft[xIndLeft[0]] : xCoordsRight[xIndRight[0]]];
+                yPos = [Math.random() < 0.5 ? yCoordsTop[yIndTop[0]] : yCoordsBottom[yIndBottom[0]]];
+            } else if (nItems === 2) {
+                xPos = [xCoordsLeft[xIndLeft[0]], xCoordsRight[xIndRight[1]]];
+                yPos = [yCoordsTop[yIndTop[0]], yCoordsBottom[yIndBottom[1]]];
+            } else if (nItems === 3) {
+                const baseX = [xCoordsLeft[xIndLeft[0]], xCoordsRight[xIndRight[1]], xCoordsLeft[xIndLeft[2]], xCoordsRight[xIndRight[3]]];
+                const baseY = [yCoordsTop[yIndTop[0]], yCoordsTop[yIndTop[1]], yCoordsBottom[yIndBottom[2]], yCoordsBottom[yIndBottom[3]]];
+                const order = jsPsych.randomization.shuffle([0, 1, 2, 3]).slice(0, 3);
+                xPos = order.map(i => baseX[i]);
+                yPos = order.map(i => baseY[i]);
+            } else if (nItems === 4) { //one colored square per quadrant
+                xPos = [xCoordsLeft[xIndLeft[0]], xCoordsRight[xIndRight[1]], xCoordsLeft[xIndLeft[2]], xCoordsRight[xIndRight[3]]];
+                yPos = [yCoordsTop[yIndTop[0]], yCoordsTop[yIndTop[1]], yCoordsBottom[yIndBottom[2]], yCoordsBottom[yIndBottom[3]]];
+            } else if (nItems === 5 || nItems === 6 || nItems === 8) { //Until MINDIST respected
+                while (true) {
+                const xL = jsPsych.randomization.shuffle([...Array(300).keys()]);
+                const xR = jsPsych.randomization.shuffle([...Array(300).keys()]);
+                const yT = jsPsych.randomization.shuffle([...Array(300).keys()]);
+                const yB = jsPsych.randomization.shuffle([...Array(300).keys()]);
+                let tempX = [];
+                let tempY = [];
+                let valid = true;
+                if (nItems === 5) {
+                    tempX = [xCoordsLeft[xL[0]], xCoordsRight[xR[1]], xCoordsLeft[xL[2]], xCoordsRight[xR[3]]];
+                    tempY = [yCoordsTop[yT[0]], yCoordsTop[yT[1]], yCoordsBottom[yB[2]], yCoordsBottom[yB[3]]];
+                    tempX.push(Math.random() < 0.5 ? xCoordsLeft[xL[4]] : xCoordsRight[xR[4]]);
+                    tempY.push(Math.random() < 0.5 ? yCoordsTop[yT[4]] : yCoordsBottom[yB[4]]);
+                } else if (nItems === 6) {
+                    tempX = [xCoordsLeft[xL[0]], xCoordsRight[xR[1]], xCoordsLeft[xL[2]], xCoordsRight[xR[3]]];
+                    tempY = [yCoordsTop[yT[0]], yCoordsTop[yT[1]], yCoordsBottom[yB[2]], yCoordsBottom[yB[3]]];
+                    tempX.push(xCoordsLeft[xL[4]], xCoordsRight[xR[5]]);
+                    tempY.push(Math.random() < 0.5 ? yCoordsTop[yT[4]] : yCoordsBottom[yB[4]],
+                            Math.random() < 0.5 ? yCoordsTop[yT[5]] : yCoordsBottom[yB[5]]);
+                } else if (nItems === 8) {
+                    tempX = [xCoordsLeft[xL[0]], xCoordsRight[xR[1]], xCoordsLeft[xL[2]], xCoordsRight[xR[3]],
+                            xCoordsLeft[xL[4]], xCoordsRight[xR[5]], xCoordsLeft[xL[6]], xCoordsRight[xR[7]]];
+                    tempY = [yCoordsTop[yT[0]], yCoordsTop[yT[1]], yCoordsBottom[yB[2]], yCoordsBottom[yB[3]],
+                            yCoordsTop[yT[4]], yCoordsTop[yT[5]], yCoordsBottom[yB[6]], yCoordsBottom[yB[7]]];
+                }
+                for (let i = 0; i < tempX.length; i++) {
+                    for (let j = i + 1; j < tempX.length; j++) {
+                    if (dist(tempX[i], tempY[i], tempX[j], tempY[j]) <= MINDIST) {
+                        valid = false;
+                        break;
+                    }
+                    }
+                    if (valid!=true) break;
+                }
+                if (valid) {
+                    xPos = tempX;
+                    yPos = tempY;
+                    break;
+                }
+            }
+            }
+            return { 
+                xPos, 
+                yPos 
+            };
+        }
+
+        
+        function generateTrialHTML(setSize, isChange, previousLocs, previousColors) {
+            const locs = getStimLocs(window, setSize);
+            const shuffledColors = jsPsych.randomization.shuffle([...COLORS]);
+            const itemColors = shuffledColors.slice(0, setSize);
+            let sampleHTML = '<div style="position:absolute; width:100%; height:100%; top:0; left:0;">';
+            for (let i = 0; i < setSize; i++) {
+                const rgb = `rgb(${itemColors[i].join(',')})`;
+                const leftPos = locs.xPos[i] - STIMSIZE / 2;
+                const topPos = locs.yPos[i] - STIMSIZE / 2;
+                sampleHTML += `<div class="square" style="position:absolute; left:${leftPos}px; top:${topPos}px; width:${STIMSIZE}px; height:${STIMSIZE}px; background-color:${rgb}; z-index:1;"></div>`;
+            }
+            sampleHTML += '</div>';
+            let probeLocX, probeLocY, probeIndex, originalColor;
+            if (previousLocs && previousLocs.xPos.length > 0) {
+                probeIndex = Math.floor(Math.random() * previousLocs.xPos.length);
+                probeLocX = previousLocs.xPos[probeIndex];
+                probeLocY = previousLocs.yPos[probeIndex];
+                originalColor = previousColors[probeIndex];
+            } else {
+                probeIndex = Math.floor(Math.random() * setSize);
+                probeLocX = locs.xPos[probeIndex];
+                probeLocY = locs.yPos[probeIndex];
+                originalColor = itemColors[probeIndex];
+            }
+            let probeColor;
+            let colorMatch;
+            
+            if (isChange === 1) {
+                colorMatch = false;
+                const availableColors = [...COLORS];
+                const indexOriginal = availableColors.findIndex(c => JSON.stringify(c) === JSON.stringify(originalColor));
+                if (indexOriginal !== -1) {
+                    availableColors.splice(indexOriginal, 1);
+                }
+                const randomIndex = Math.floor(Math.random() * availableColors.length);
+                probeColor = availableColors[randomIndex];                
+            } else {
+                probeColor = originalColor;
+                colorMatch = true;
+            }
+            const probeRGB = `rgb(${probeColor.join(',')})`;
+            const probeLeft = probeLocX - STIMSIZE / 2;
+            const probeTop = probeLocY - STIMSIZE / 2;
+            const probeHTML = `<div style="position:absolute; width:100%; height:100%; top:0; left:0;">
+                <div class="square" style="position:absolute; left:${probeLeft}px; top:${probeTop}px; width:${STIMSIZE}px; height:${STIMSIZE}px; background-color:${probeRGB}; z-index:1;"></div>
+            </div>`;
+            const squaresData = [];
+            for (let i = 0; i < setSize; i++) {
+                squaresData.push({
+                square_id: i + 1,
+                square_x: locs.xPos[i],
+                square_y: locs.yPos[i],
+                square_r: itemColors[i][0],
+                square_g: itemColors[i][1],
+                square_b: itemColors[i][2],
+                is_probe: (locs.xPos[i] === probeLocX && locs.yPos[i] === probeLocY) ? 1 : 0,
+                color_match: colorMatch && (locs.xPos[i] === probeLocX && locs.yPos[i] === probeLocY) ? 1 : 0
+                });
+            }
+            return {
+                sampleHTML,
+                probeHTML,
+                setSize,
+                locs,
+                itemColors,
+                probeLoc: [probeLocX, probeLocY],
+                probeIndex,
+                originalColor,
+                probeColor,
+                colorMatch,
+                squaresData,
+                expectedAnswer: colorMatch ? responseMapping.same : responseMapping.different
+            };
+        }
+        const jsPsych = initJsPsych({
+            on_finish: function() {
+                const code = jsPsych.data.get().values()[0]?.participant_code || "NA";
+                jsPsych.data.get().localSave('csv', `change_detection_${code}.csv`);
+            }
+        });
+        const fullscreen = {
+            type: jsPsychFullscreen,
+            fullscreen_mode: true,
+            message: "L'expérience va démarrer en plein écran.<br><br><br>",
+            button_label: "Commencer"
+        };
+        const participant_info = {
+            type: jsPsychSurveyText,
+            questions: [{ prompt: "Code Participant", name: "code", required: true }],
+            button_label: "Continuer",
+            on_finish: function(data) {
+                const code = data.response.code;
+                jsPsych.data.addProperties({ participant_code: code });
+                if (/^\d+$/.test(code)) {
+                const num = parseInt(code);
+                responseMapping = num % 2 === 0 ? { same: "e", different: "i" } : { same: "i", different: "e" };
+                }
+            }
+        };
+
+        const instructions = {
+            type: jsPsychHtmlButtonResponse,
+            stimulus: `
+                <div style="text-align:center">
+                <h2>Consignes</h2>
+                <p>Tu vas voir plusieurs carrés colorés.</p>
+                <p>Après une pause, un carré réapparaîtra à l'emplacement d'un carré précédent.</p>
+                <p>Si sa couleur est <strong>LA MÊME</strong>, appuie sur <strong>V</strong>.</p>
+                <p>Si sa couleur est <strong>DIFFÉRENTE</strong>, appuie sur <strong>F</strong>.</p>
+                </div>
+            `,
+            choices: ["Commencer"],
+            button_label: "Commencer"
+        };
+
+        const hide_cursor = {
+            type: jsPsychCallFunction,
+            func: function() {
+                if (!document.getElementById('hide-cursor-style')) {
+                const style = document.createElement('style');
+                style.id = 'hide-cursor-style';
+                style.innerHTML = 'body { cursor: none !important; }';
+                document.head.appendChild(style);
+                }
+            }
+        };
+
+        const show_cursor = {
+            type: jsPsychCallFunction,
+            func: function() {
+                const el = document.getElementById('hide-cursor-style');
+                if (el) el.remove();
+            }
+        };
+
+        const fixation = {
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: '<div class="fixation">*</div>',
+            choices: "NO_KEYS",
+            trial_duration: FIXATIONDURATION
+        };
+        function buildTrialTimeline(setSize, isChange) {
+            let currentTrialData = null;
+            return [
+                fixation,
+                {
+                type: jsPsychHtmlKeyboardResponse,
+                stimulus: function() {
+                    currentTrialData = generateTrialHTML(setSize, isChange, previousLocs, previousItemColors);                   
+                    return currentTrialData.sampleHTML;
+                },
+                choices: "NO_KEYS",
+                trial_duration: STIMULUSDURATION, //exposure
+                data: { setSize, isChange, phase: 'sample' }
+                },
+                {
+                type: jsPsychHtmlKeyboardResponse,
+                stimulus: "",
+                choices: "NO_KEYS",
+                trial_duration: RETENTIONINTERVAL, //blank
+                data: { setSize, isChange, phase: 'retention' }
+                },
+                {
+                type: jsPsychHtmlKeyboardResponse,
+                stimulus: function() {
+                    return currentTrialData.probeHTML;
+                },
+                choices: [responseMapping.same, responseMapping.different],
+                data: {
+                    setSize,
+                    isChange,
+                    phase: 'probe'
+                },
+                on_finish: function(data) {
+                    if (!currentTrialData) {
+                    data.correct = false;
+                    return;
+                    }
+                    const trueColorMatch = currentTrialData.colorMatch;
+                    const expectedAnswer = currentTrialData.expectedAnswer;
+                    const isSame = jsPsych.pluginAPI.compareKeys(data.response, responseMapping.same);
+                    data.correct = (isSame === trueColorMatch);
+                    
+                    data.response_key = data.response;
+                    data.rt = data.rt;
+                    data.expected_answer = expectedAnswer;
+                    data.true_color_match = trueColorMatch;
+                    data.probe_index = currentTrialData.probeIndex;
+                    data.probe_x = currentTrialData.probeLoc[0];
+                    data.probe_y = currentTrialData.probeLoc[1];
+                    data.probe_r = currentTrialData.probeColor[0];
+                    data.probe_g = currentTrialData.probeColor[1];
+                    data.probe_b = currentTrialData.probeColor[2];
+                    data.squares_json = JSON.stringify(currentTrialData.squaresData);
+                }
+                }
+            ];
+        }
+
+        function generateTrialVariables() {
+            const trials = [];
+            SETSIZES.forEach(size => {
+                CHANGECONDITIONS.forEach(change => {
+                for (let i = 0; i < NTRIALSPERCONDITION; i++) {
+                    trials.push({ setSize: size, isChange: change });
+                }
+                });
+            });
+            return jsPsych.randomization.shuffle(trials);
+        }
+    
+        function createBlock(blockNum, totalBlocks, trialVariables) {
+            const blockTrials = jsPsych.randomization.shuffle([...trialVariables]);
+            const blockTimeline = [];
+            blockTrials.forEach(trial => {
+                blockTimeline.push(...buildTrialTimeline(trial.setSize, trial.isChange));
+            });
+            if (blockNum < totalBlocks) {
+                blockTimeline.push({
+                type: jsPsychHtmlKeyboardResponse,
+                stimulus: "<p>Pause. Appuie sur une touche du pavé numérique pour continuer.</p>",
+                choices: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+                });
+            }
+            return blockTimeline;
+        }
+
+        const allTrialVariables = generateTrialVariables();
+        const trialsPerBlock = Math.ceil(allTrialVariables.length / NUMBLOCKS);
+        const blocks = [];
+        for (let b = 0; b < NUMBLOCKS; b++) {
+            const startIdx = b * trialsPerBlock;
+            const endIdx = Math.min(startIdx + trialsPerBlock, allTrialVariables.length);
+            const blockVars = allTrialVariables.slice(startIdx, endIdx);
+            blocks.push(createBlock(b + 1, NUMBLOCKS, blockVars));
+        }
+
+        const calculate_cowan_k = {
+            type: jsPsychCallFunction,
+            func: function() {
+                const data = jsPsych.data.get().filter({ phase: 'probe' }).values();
+                
+                const stats = {};
+                SETSIZES.forEach(size => {
+                    stats[size] = { hits: 0, misses: 0, fa: 0, cr: 0, total_change: 0, total_same: 0 };
+                });
+
+                data.forEach(trial => {
+                    const size = trial.setSize;
+                    if (!stats[size]) return;
+                    
+                    const isChange = trial.isChange === 1;
+                    const userRespondedDifferent = jsPsych.pluginAPI.compareKeys(trial.response_key, responseMapping.different);
+                    
+                    if (isChange) {
+                        stats[size].total_change++;
+                        if (userRespondedDifferent) {
+                            stats[size].hits++;
+                        } else {
+                            stats[size].misses++;
+                        }
+                    } else {
+                        stats[size].total_same++;
+                        if (userRespondedDifferent != true) {
+                            stats[size].cr++; //Correct Rejection
+                        } else {
+                            stats[size].fa++; //False Alarm
+                        }
+                    }
+                });
+
+                let totalK = 0;
+                let countSizes = 0;
+                let kValues = [];
+
+                SETSIZES.forEach(size => {
+                    const n = stats[size].total_change + stats[size].total_same;
+                    if (n === 0) return;
+
+                    const hitRate = stats[size].hits / stats[size].total_change;
+                    const faRate = stats[size].fa / stats[size].total_same;
+
+                    let k = size * (hitRate - faRate);
+                    k = Math.max(0, Math.min(k, size));
+                    
+                    stats[size].k = k.toFixed(2);
+                    kValues.push(k);
+                    totalK += k;
+                    countSizes++;
+                });
+
+                const meanK = countSizes > 0 ? (totalK / countSizes).toFixed(2) : "NA";
+                jsPsych.data.addProperties({
+                    cowan_k_size_4: stats[4]?.k || "NA",
+                    cowan_k_size_6: stats[6]?.k || "NA",
+                    cowan_k_size_8: stats[8]?.k || "NA",
+                    cowan_k_mean: meanK
+                });
+            }
+        };
+
+        const mainTimeline = blocks.flat();
+        jsPsych.run([fullscreen, participant_info, instructions, hide_cursor, ...mainTimeline, calculate_cowan_k, show_cursor]);
+    </script>
+</html>

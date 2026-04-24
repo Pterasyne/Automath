@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Chrono</title>
+<style>
+    body {text-align: center}
+    .chronos {margin: 10px}
+    .time {width: 80px; display: inline-block}
+    button{margin: 5px}
+</style>
+</head>
+<body> 
+    <div>
+        <h4>Code</h4>
+        <input type="text" id="participant_code" placeholder="Ex: 00 (important!)">
+    </div>
+    <h2>10 chronos</h2>
+    <div id="chronos"></div>
+    <button onclick="exportCSV()">CSV</button>
+    <script>
+        let chronosTable = Array(10).fill("000000 ms");
+        let rawChronosTable = Array(10).fill(0);
+        function createDistinctChrono(id) {
+            let runningBool = false;
+            let start = 0;
+            let duration = 0;
+            let visualTimer;
+            
+            const box = document.createElement("div");
+            box.className = "chrono";
+
+            const label = document.createElement("span");
+            label.textContent = "Chrono " + String(id).padStart(2, '0') +": ";
+            box.appendChild(label);
+
+            const display = document.createElement("span");
+            display.className = "time";
+            display.textContent = "000000 ms";
+            box.appendChild(display);
+
+            const startBtn = document.createElement("button")
+            startBtn.textContent = "Start";
+            startBtn.onclick = function() {
+                if (runningBool == false){
+                    runningBool = true;
+                    start = Date.now() - duration;
+                    visualTimer = setInterval(function() {
+                        duration = Date.now() - start;
+
+                        let timeStr = String(duration).padStart(6, '0') + " ms"; //padStart for leading 0
+                    
+                        display.textContent = timeStr;
+                        chronosTable[id - 1] = timeStr;
+                        rawChronosTable[id - 1] = String(duration).padStart(6, '0');
+                    }, 10) //~10ms screen display basically
+                }
+            };
+            box.appendChild(startBtn)
+
+            const stopBtn = document.createElement("button")
+            stopBtn.textContent = "Stop";
+            stopBtn.onclick = function() {
+                runningBool = false;
+                clearInterval(visualTimer);
+            };
+            box.appendChild(stopBtn)
+
+            const resetBtn = document.createElement("button")
+            resetBtn.textContent = "Reset";
+            resetBtn.onclick = function() {
+                runningBool = false;
+                clearInterval(visualTimer);
+                duration = 0;
+                display.textContent = "000000 ms";
+                chronosTable[id - 1] = "000000 ms";
+            };
+            box.appendChild(resetBtn)
+
+            return box;
+        }
+
+        for(let i = 1; i <= 10; i++){
+            document.getElementById("chronos").appendChild(createDistinctChrono(i));
+        }
+
+        function exportCSV() {
+            let participantCode = document.getElementById('participant_code').value;
+
+            // mean of the six best scores 
+            let sortedTrials = [...rawChronosTable].sort(); //"..."create a copy + BE CAREFUL this is not good code practice, it's just that i'm using a fixed number of leading 0 but sort in javascript compare string e.g. 10 < 2 < 5
+            sortedTrials = sortedTrials.map(Number); 
+            let meanSixBest = (sortedTrials[0]+sortedTrials[1]+sortedTrials[2]+sortedTrials[3]+sortedTrials[4]+sortedTrials[5])/6;
+
+            let csvLine = participantCode + "," + meanSixBest;
+            
+            for (let i = 0; i < 10; i++) {
+                csvLine += "," + rawChronosTable[i];
+            }
+
+            let csvContent = "participant_code,meanSixBest,Trial1,Trial2,Trial3,Trial4,Trial5,Trial6,Trial7,Trial8,Trial9,Trial10\n";
+            csvContent += csvLine;
+
+            let blob = new Blob([csvContent], { type: "text/csv" });
+            let url = URL.createObjectURL(blob);
+
+            let a = document.createElement("a");
+            a.href = url;
+            a.download = "chrono_" + participantCode + ".csv";
+            a.click();
+        }
+    </script>
+</body>
+</html>
